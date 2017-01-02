@@ -142,15 +142,15 @@ define("entities/things/thing", ["require", "exports", "randomGenerator", "react
         }
         Thing.prototype.placeInRandomPositionNotCollidingWithHead = function (head) {
             var point = new Phaser.Point(head.x, head.y);
-            while (!this.isRectangleIsInHead(point, head)) {
+            while (this.doesRectangleIntersectWithHead(point, head)) {
                 point = new Phaser.Point(this.randomGenerator.getRandomInteger(0, this.game.canvas.clientWidth), this.randomGenerator.getRandomInteger(0, this.game.canvas.clientHeight));
             }
             this.x = point.x;
             this.y = point.y;
         };
-        Thing.prototype.isRectangleIsInHead = function (point, head) {
-            return !((point.x - this.width / 2 > head.x - head.width / 2) && (point.x + this.width / 2 < head.x + head.width / 2) &&
-                (point.y - this.height / 2 > head.y - head.height / 2) && (point.y + this.height / 2 < head.y + head.height / 2));
+        Thing.prototype.doesRectangleIntersectWithHead = function (point, head) {
+            return ((point.x + this.width / 2 > head.x - head.width / 2 && point.x - this.width / 2 < head.x + head.width / 2) &&
+                (point.y + this.height / 2 > head.y - head.height / 2 && point.y - this.height / 2 < head.y + head.height / 2));
         };
         Thing.prototype.establishPhysics = function () {
             this.anchor.setTo(0.5, 0.5);

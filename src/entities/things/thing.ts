@@ -27,7 +27,7 @@ export class Thing extends Phaser.Sprite implements Pickable {
     placeInRandomPositionNotCollidingWithHead(head: Head): void {
         let point: Phaser.Point = new Phaser.Point(head.x, head.y);
         
-        while (!this.isRectangleIsInHead(point, head)) {
+        while (this.doesRectangleIntersectWithHead(point, head)) {
             point = new Phaser.Point(this.randomGenerator.getRandomInteger(0, this.game.canvas.clientWidth), this.randomGenerator.getRandomInteger(0, this.game.canvas.clientHeight));
         }
         
@@ -35,9 +35,9 @@ export class Thing extends Phaser.Sprite implements Pickable {
         this.y = point.y;
     }
 
-    private isRectangleIsInHead(point: Phaser.Point, head: Head) {
-        return !((point.x - this.width/2 > head.x - head.width / 2) && (point.x + this.width/2 < head.x + head.width / 2) &&
-            (point.y - this.height/2 > head.y - head.height / 2) && (point.y + this.height/2 < head.y + head.height / 2));
+    private doesRectangleIntersectWithHead(point: Phaser.Point, head: Head) {
+        return ((point.x + this.width/2 > head.x - head.width / 2 && point.x - this.width/2 < head.x + head.width / 2) &&
+            (point.y + this.height/2 > head.y - head.height / 2 && point.y - this.height/2 < head.y + head.height / 2));
     }
 
     establishPhysics() {
