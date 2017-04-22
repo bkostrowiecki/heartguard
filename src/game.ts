@@ -18,7 +18,6 @@ class Game extends Phaser.Game
 		// 'content' - the name of the container to add our game to
 		// { preload:this.preload, create:this.create} - functions to call for our states
 
-
 		super(1024, 786, Phaser.AUTO, 'content', null);
 
 		this.state.add('Boot', Boot, false);

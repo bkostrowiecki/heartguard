@@ -21,7 +21,7 @@ export class Virus extends Phaser.Sprite {
     randomGenerator: RandomGenerator;
 
     constructor(game: Phaser.Game, heart: Heart) {
-        super(game, game.world.centerX - 300, game.world.centerY, 'virus', 1);
+        super(game, -2000, -200, 'virus', 1);
 
         this.game = game;
         this.heart = heart;
@@ -42,6 +42,14 @@ export class Virus extends Phaser.Sprite {
         this.scale.x = 1;
         this.scale.y = 1;
 
+        if (this.randomGenerator.getRandomInteger(0, 1)) {
+            this.position.x = -100;
+        } else {
+            this.position.x = this.game.world.width + 100;
+        }
+        
+        this.position.y = this.randomGenerator.getRandomInteger(-100, this.game.world.height + 100);
+
         this.virusbeatTween = this.game.add.tween(this.scale).to({
             x: 0.85,
             y: 0.85
@@ -56,7 +64,12 @@ export class Virus extends Phaser.Sprite {
     update() {
         this.game.physics.arcade.overlap(this, this.heart, this.overlapHandler.bind(this), null, this);
 
-        if (this.virusState === VirusState.FollowHeart) {
+        if (!this.alive) {
+            this.destroy();
+            this.attackTimer.destroy();
+        }
+
+        if (this.alive && this.virusState === VirusState.FollowHeart) {
             this.game.physics.arcade.moveToObject(this, this.heart, 100);
         }
     }
@@ -64,6 +77,14 @@ export class Virus extends Phaser.Sprite {
     attackTick() {
         this.attackCallback(this, this.heart);
         this.heart.health -= 10;
+
+        this.heart.tint = 0xffff00;
+        this.heart.alpha = 0.5;
+
+        this.game.time.events.add(200, () => {
+             this.heart.tint = 0xffffff;
+             this.heart.alpha = 1;
+        });
     }
 
     attachAttackCallback(attackCallback: Function) {
@@ -74,8 +95,10 @@ export class Virus extends Phaser.Sprite {
         this.virusState = VirusState.PrepareToAttack;
 
         this.game.time.events.add(this.randomGenerator.getRandomInteger(1000, 5000), () => {
-            this.body.velocity.x = 0;
-            this.body.velocity.y = 0;
+            if (this.alive) {
+                this.body.velocity.x = 0;
+                this.body.velocity.y = 0;
+            }
         });
 
         this.attackTimer.start();

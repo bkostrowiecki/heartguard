@@ -14,10 +14,13 @@ export class Preloader extends Phaser.State {
         // this.load.image('level1', 'assets/level1.png');
 
         this.game.load.image('logo', 'bin/assets/logo.png');
-        this.game.load.image('background', 'bin/assets/background.png');
-        this.game.load.spritesheet('head', 'bin/assets/head.png', 128, 128, 3);
+        
         this.game.load.image('heart', 'bin/assets/heart.png');
         this.game.load.image('virus', 'bin/assets/virus.png');
+        this.game.load.image('player', 'bin/assets/player.png');
+
+        this.game.load.image('bullet', 'bin/assets/bullet.png');
+
     }
 
     create() {

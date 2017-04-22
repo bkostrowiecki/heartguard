@@ -49,10 +49,10 @@ define("states/preloader", ["require", "exports"], function (require, exports) {
             // this.load.spritesheet('simon', 'assets/simon.png', 58, 96, 5);;
             // this.load.image('level1', 'assets/level1.png');
             this.game.load.image('logo', 'bin/assets/logo.png');
-            this.game.load.image('background', 'bin/assets/background.png');
-            this.game.load.spritesheet('head', 'bin/assets/head.png', 128, 128, 3);
             this.game.load.image('heart', 'bin/assets/heart.png');
             this.game.load.image('virus', 'bin/assets/virus.png');
+            this.game.load.image('player', 'bin/assets/player.png');
+            this.game.load.image('bullet', 'bin/assets/bullet.png');
         };
         Preloader.prototype.create = function () {
             var tween = this.add.tween(this.preloaderBar).to({
@@ -146,7 +146,7 @@ define("entities/virus", ["require", "exports", "helpers/randomGenerator"], func
     var Virus = (function (_super) {
         __extends(Virus, _super);
         function Virus(game, heart) {
-            var _this = _super.call(this, game, game.world.centerX - 300, game.world.centerY, 'virus', 1) || this;
+            var _this = _super.call(this, game, -2000, -200, 'virus', 1) || this;
             _this.attackCallback = function () { };
             _this.game = game;
             _this.heart = heart;
@@ -160,6 +160,13 @@ define("entities/virus", ["require", "exports", "helpers/randomGenerator"], func
             _this.maxHealth = 100;
             _this.scale.x = 1;
             _this.scale.y = 1;
+            if (_this.randomGenerator.getRandomInteger(0, 1)) {
+                _this.position.x = -100;
+            }
+            else {
+                _this.position.x = _this.game.world.width + 100;
+            }
+            _this.position.y = _this.randomGenerator.getRandomInteger(-100, _this.game.world.height + 100);
             _this.virusbeatTween = _this.game.add.tween(_this.scale).to({
                 x: 0.85,
                 y: 0.85
@@ -171,13 +178,24 @@ define("entities/virus", ["require", "exports", "helpers/randomGenerator"], func
         }
         Virus.prototype.update = function () {
             this.game.physics.arcade.overlap(this, this.heart, this.overlapHandler.bind(this), null, this);
-            if (this.virusState === VirusState.FollowHeart) {
+            if (!this.alive) {
+                this.destroy();
+                this.attackTimer.destroy();
+            }
+            if (this.alive && this.virusState === VirusState.FollowHeart) {
                 this.game.physics.arcade.moveToObject(this, this.heart, 100);
             }
         };
         Virus.prototype.attackTick = function () {
+            var _this = this;
             this.attackCallback(this, this.heart);
             this.heart.health -= 10;
+            this.heart.tint = 0xffff00;
+            this.heart.alpha = 0.5;
+            this.game.time.events.add(200, function () {
+                _this.heart.tint = 0xffffff;
+                _this.heart.alpha = 1;
+            });
         };
         Virus.prototype.attachAttackCallback = function (attackCallback) {
             this.attackCallback = attackCallback;
@@ -186,8 +204,10 @@ define("entities/virus", ["require", "exports", "helpers/randomGenerator"], func
             var _this = this;
             this.virusState = VirusState.PrepareToAttack;
             this.game.time.events.add(this.randomGenerator.getRandomInteger(1000, 5000), function () {
-                _this.body.velocity.x = 0;
-                _this.body.velocity.y = 0;
+                if (_this.alive) {
+                    _this.body.velocity.x = 0;
+                    _this.body.velocity.y = 0;
+                }
             });
             this.attackTimer.start();
         };
@@ -195,13 +215,102 @@ define("entities/virus", ["require", "exports", "helpers/randomGenerator"], func
     }(Phaser.Sprite));
     exports.Virus = Virus;
 });
+define("entities/player", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var Direction;
+    (function (Direction) {
+        Direction[Direction["None"] = 0] = "None";
+        Direction[Direction["Left"] = 1] = "Left";
+        Direction[Direction["Right"] = 2] = "Right";
+    })(Direction || (Direction = {}));
+    ;
+    var Player = (function (_super) {
+        __extends(Player, _super);
+        function Player(game) {
+            var _this = _super.call(this, game, game.world.centerX, game.world.centerY, 'player', 1) || this;
+            _this.jumpTimer = 0;
+            _this.direction = Direction.None;
+            _this.game = game;
+            _this.game.add.existing(_this);
+            _this.game.physics.enable(_this, Phaser.Physics.ARCADE);
+            _this.body.collideWorldBounds = true;
+            _this.body.gravity.y = 5000;
+            _this.body.maxVelocity.y = 10000;
+            _this.body.setSize(80, 80, 0, 0);
+            _this.cursors = _this.game.input.keyboard.createCursorKeys();
+            _this.jumpButton = _this.game.input.keyboard.addKey(Phaser.Keyboard.Z);
+            _this.fireButton = _this.game.input.keyboard.addKey(Phaser.Keyboard.X);
+            _this.weapon = _this.game.add.weapon(50, 'bullet');
+            _this.weapon.bulletKillType = Phaser.Weapon.KILL_WORLD_BOUNDS;
+            _this.weapon.bulletAngleOffset = 20;
+            _this.weapon.bulletSpeed = 1500;
+            _this.weapon.fireRate = 250;
+            _this.weapon.bulletAngleVariance = 2;
+            _this.weapon.trackSprite(_this, 40, 40);
+            return _this;
+        }
+        Player.prototype.update = function () {
+            this.body.velocity.x = 0;
+            if (this.cursors.left.isDown) {
+                this.body.velocity.x = -800;
+                this.direction = Direction.Left;
+                if (this.cursors.up.isDown) {
+                    this.weapon.fireAngle = 180 + 40;
+                }
+                else if (this.cursors.down.isDown) {
+                    this.weapon.fireAngle = 180 - 40;
+                }
+                else {
+                    this.weapon.fireAngle = 180;
+                }
+            }
+            else if (this.cursors.right.isDown) {
+                this.direction = Direction.Right;
+                this.body.velocity.x = 800;
+                this.weapon.fireAngle = 360;
+                if (this.cursors.up.isDown) {
+                    this.weapon.fireAngle = 360 - 40;
+                }
+                else if (this.cursors.down.isDown) {
+                    this.weapon.fireAngle = 360 + 40;
+                }
+                else {
+                    this.weapon.fireAngle = 360;
+                }
+            }
+            else if (this.cursors.up.isDown) {
+                this.weapon.fireAngle = 270;
+            }
+            else if (this.cursors.down.isDown) {
+                this.weapon.fireAngle = 90;
+            }
+            if (this.jumpButton.isDown && this.body.onFloor() && this.game.time.now > this.jumpTimer) {
+                this.body.velocity.y = -1700;
+                this.jumpTimer = this.game.time.now + 750;
+            }
+            if (this.fireButton.isDown) {
+                this.weapon.fire();
+            }
+        };
+        Player.prototype.getWeapon = function () {
+            return this.weapon;
+        };
+        Player.prototype.render = function () {
+            this.game.debug.bodyInfo(this, 16, 24);
+        };
+        return Player;
+    }(Phaser.Sprite));
+    exports.Player = Player;
+});
 /// <reference path="../../node_modules/phaser/typescript/phaser.d.ts" />
-define("states/gameplay", ["require", "exports", "entities/heart", "entities/virus"], function (require, exports, heart_1, virus_1) {
+define("states/gameplay", ["require", "exports", "entities/heart", "entities/virus", "entities/player"], function (require, exports, heart_1, virus_1, player_1) {
     "use strict";
     var Gameplay = (function (_super) {
         __extends(Gameplay, _super);
         function Gameplay() {
-            return _super !== null && _super.apply(this, arguments) || this;
+            var _this = _super !== null && _super.apply(this, arguments) || this;
+            _this.viruses = [];
+            return _this;
         }
         Gameplay.prototype.preload = function () {
             this.game.stage.backgroundColor = 0x890029;
@@ -209,13 +318,34 @@ define("states/gameplay", ["require", "exports", "entities/heart", "entities/vir
         Gameplay.prototype.create = function () {
             this.physics.startSystem(Phaser.Physics.ARCADE);
             this.heart = new heart_1.Heart(this.game);
-            this.virusTest = new virus_1.Virus(this.game, this.heart);
+            this.player = new player_1.Player(this.game);
+            this.newVirusTimer = this.game.time.create(false);
+            this.newVirusTimer.loop(3000, this.virusTimerCallback.bind(this), this);
+            this.newVirusTimer.start();
+        };
+        Gameplay.prototype.virusTimerCallback = function () {
+            var virus = new virus_1.Virus(this.game, this.heart);
+            this.viruses.push(virus);
         };
         Gameplay.prototype.update = function () {
+            var _this = this;
+            this.viruses.forEach(function (virus) {
+                _this.game.physics.arcade.overlap(_this.player.getWeapon().bullets, virus, _this.virusBulletCollision.bind(_this));
+            });
+        };
+        Gameplay.prototype.virusBulletCollision = function (virus, bullet) {
+            bullet.kill();
+            virus.damage(15);
+            virus.tint = 0xcccc00;
+            this.game.time.events.add(200, function () {
+                if (virus && virus.alive) {
+                    virus.tint = 0xffffff;
+                    virus.alpha = 1;
+                }
+            });
         };
         Gameplay.prototype.render = function () {
             this.game.debug.body(this.heart);
-            this.game.debug.body(this.virusTest);
             this.game.debug.text(this.heart.health.toString(), 10, 10, '#fff');
             // for (let i = 0; i < this.things.length; i++) {
             //     this.game.debug.body(this.things[i]);
