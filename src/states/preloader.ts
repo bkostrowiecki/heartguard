@@ -16,8 +16,8 @@ export class Preloader extends Phaser.State {
         this.game.load.image('logo', 'bin/assets/logo.png');
         this.game.load.image('background', 'bin/assets/background.png');
         this.game.load.spritesheet('head', 'bin/assets/head.png', 128, 128, 3);
-        this.game.load.image('beer', 'bin/assets/beer.png');
-        this.game.load.image('broccoli', 'bin/assets/broccoli.png');
+        this.game.load.image('heart', 'bin/assets/heart.png');
+        this.game.load.image('virus', 'bin/assets/virus.png');
     }
 
     create() {
@@ -29,6 +29,6 @@ export class Preloader extends Phaser.State {
     }
 
     startSplash() {
-        this.game.state.start('Splash', true, false);
+        this.game.state.start('Gameplay', true, false);
     }
 }
