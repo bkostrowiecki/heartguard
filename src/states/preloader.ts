@@ -19,10 +19,19 @@ export class Preloader extends Phaser.State {
         this.game.load.image('virus', 'bin/assets/virus.png');
         this.game.load.image('player', 'bin/assets/player.png');
 
+        this.game.load.audio('explosion', 'bin/assets/explosion.mp3');
+        this.game.load.audio('jump', 'bin/assets/jump.mp3');
+        this.game.load.audio('steps', 'bin/assets/steps.mp3');
+        this.game.load.audio('gunshot', 'bin/assets/gunshot.mp3');
+        this.game.load.audio('hit', 'bin/assets/hit2.mp3');
+
+        this.game.load.audio('heartbeat', 'bin/assets/heartbeat.mp3');
+        this.game.load.audio('heartbleed', 'bin/assets/heartbleed.mp3');
+
         this.game.load.image('bullet', 'bin/assets/bullet.png');
         this.game.load.image('explosionParticle', 'bin/assets/explosionParticle.png');
         this.game.load.image('blood', 'bin/assets/blood.png');
-
+        this.game.load.image('platform', 'bin/assets/platform.png');
     }
 
     create() {
@@ -31,6 +40,8 @@ export class Preloader extends Phaser.State {
         }, 1000, Phaser.Easing.Linear.None, true);
 
         tween.onComplete.add(this.startSplash, this);
+
+        this.game.input.gamepad.start();
     }
 
     startSplash() {

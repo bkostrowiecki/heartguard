@@ -52,15 +52,24 @@ define("states/preloader", ["require", "exports"], function (require, exports) {
             this.game.load.image('heart', 'bin/assets/heart.png');
             this.game.load.image('virus', 'bin/assets/virus.png');
             this.game.load.image('player', 'bin/assets/player.png');
+            this.game.load.audio('explosion', 'bin/assets/explosion.mp3');
+            this.game.load.audio('jump', 'bin/assets/jump.mp3');
+            this.game.load.audio('steps', 'bin/assets/steps.mp3');
+            this.game.load.audio('gunshot', 'bin/assets/gunshot.mp3');
+            this.game.load.audio('hit', 'bin/assets/hit2.mp3');
+            this.game.load.audio('heartbeat', 'bin/assets/heartbeat.mp3');
+            this.game.load.audio('heartbleed', 'bin/assets/heartbleed.mp3');
             this.game.load.image('bullet', 'bin/assets/bullet.png');
             this.game.load.image('explosionParticle', 'bin/assets/explosionParticle.png');
             this.game.load.image('blood', 'bin/assets/blood.png');
+            this.game.load.image('platform', 'bin/assets/platform.png');
         };
         Preloader.prototype.create = function () {
             var tween = this.add.tween(this.preloaderBar).to({
                 alpha: 0
             }, 1000, Phaser.Easing.Linear.None, true);
             tween.onComplete.add(this.startSplash, this);
+            this.game.input.gamepad.start();
         };
         Preloader.prototype.startSplash = function () {
             this.game.state.start('Gameplay', true, false);
@@ -114,11 +123,24 @@ define("entities/heart", ["require", "exports"], function (require, exports) {
             }, 150, 'Linear', true, 0, -1);
             _this.beatDelay = 1000;
             _this.heartbeatTween.yoyo(true, _this.beatDelay);
+            _this.heartbeatSound = _this.game.add.audio('heartbeat');
+            _this.heartbeatSound.allowMultiple = false;
+            var index = 0;
+            _this.heartbeatTween.onLoop.add(function () {
+                index++;
+                if (index % 2 === 0) {
+                    _this.heartbeatSound.play();
+                }
+            });
+            _this.heartbleedSound = _this.game.add.audio('heartbleed');
+            _this.heartbleedSound.allowMultiple = false;
+            _this.heartbleedSound.volume = 0.65;
             return _this;
         }
         Heart.prototype.increaseHeartbeat = function () {
-            this.beatDelay -= 70;
+            this.beatDelay -= 60;
             this.heartbeatTween.yoyo(true, this.beatDelay);
+            this.heartbleedSound.play();
         };
         Heart.prototype.stop = function () {
             this.heartbeatTween.stop();
@@ -168,6 +190,8 @@ define("entities/virus", ["require", "exports", "helpers/randomGenerator"], func
             _this.game.physics.enable(_this, Phaser.Physics.ARCADE);
             _this.anchor.setTo(0.5, 0.5);
             _this.body.setCircle(_this.width / 2);
+            //this.body.setSize(80, 80, 0, 0);
+            _this.body.immovable = true;
             _this.health = 100;
             _this.maxHealth = 100;
             _this.scale.x = 1;
@@ -193,18 +217,23 @@ define("entities/virus", ["require", "exports", "helpers/randomGenerator"], func
             _this.explosionEmitter.makeParticles('explosionParticle');
             _this.explosionEmitter.gravity = 0;
             _this.explosionEmitter.lifespan = 400;
-            _this.explosionEmitter.minParticleScale = 0.5;
+            _this.explosionEmitter.minParticleScale = 0.75;
             _this.explosionEmitter.minParticleSpeed.set(-500, -500);
             _this.explosionEmitter.maxParticleSpeed.set(500, 500);
-            _this.explosionEmitter.maxParticleScale = 1.5;
+            _this.explosionEmitter.maxParticleScale = 2;
             _this.heartbleedEmitter = _this.game.add.emitter(_this.game.world.centerX, _this.game.world.centerY, 5);
             _this.heartbleedEmitter.makeParticles('blood');
             _this.heartbleedEmitter.gravity = 1000;
             _this.heartbleedEmitter.lifespan = 400;
-            _this.heartbleedEmitter.minParticleScale = 0.5;
+            _this.heartbleedEmitter.minParticleScale = 0.75;
             _this.heartbleedEmitter.minParticleSpeed.set(-100, -100);
             _this.heartbleedEmitter.maxParticleSpeed.set(100, 250);
-            _this.heartbleedEmitter.maxParticleScale = 1.5;
+            _this.heartbleedEmitter.maxParticleScale = 2;
+            _this.explosionSound = _this.game.add.audio('explosion');
+            _this.explosionSound.allowMultiple = false;
+            _this.hitSound = _this.game.add.audio('hit');
+            _this.hitSound.allowMultiple = true;
+            _this.hitSound.volume = 0.4;
             return _this;
         }
         Virus.prototype.update = function () {
@@ -230,9 +259,26 @@ define("entities/virus", ["require", "exports", "helpers/randomGenerator"], func
                     alpha: 0
                 }, 350, Phaser.Easing.Cubic.In, true, 0, null, false);
             }, this);
+            this.explosionSound.play();
             this.game.time.events.add(1000, function () {
                 _this.explosionEmitter.destroy();
             }, this);
+            this.game.time.events.add(2000, function () {
+                _this.explosionSound.destroy();
+            }, this);
+        };
+        Virus.prototype.playDamageSound = function () {
+            this.hitSound.play();
+        };
+        Virus.prototype.animateDamage = function () {
+            var _this = this;
+            this.tint = 0xcccc00;
+            this.game.time.events.add(200, function () {
+                if (_this && _this.alive) {
+                    _this.tint = 0xffffff;
+                    _this.alpha = 1;
+                }
+            });
         };
         Virus.prototype.attackTick = function () {
             var _this = this;
@@ -305,10 +351,12 @@ define("entities/player", ["require", "exports"], function (require, exports) {
             _this.game = game;
             _this.game.add.existing(_this);
             _this.game.physics.enable(_this, Phaser.Physics.ARCADE);
+            _this.pad = _this.game.input.gamepad.pad1;
             _this.body.collideWorldBounds = true;
             _this.body.gravity.y = 5000;
             _this.body.maxVelocity.y = 10000;
             _this.body.setSize(80, 80, 0, 0);
+            _this.body.checkCollision.up = false;
             _this.cursors = _this.game.input.keyboard.createCursorKeys();
             _this.jumpButton = _this.game.input.keyboard.addKey(Phaser.Keyboard.X);
             _this.fireButton = _this.game.input.keyboard.addKey(Phaser.Keyboard.Z);
@@ -319,50 +367,98 @@ define("entities/player", ["require", "exports"], function (require, exports) {
             _this.weapon.fireRate = 200;
             _this.weapon.bulletAngleVariance = 2;
             _this.weapon.trackSprite(_this, 40, 40);
+            _this.jumpSound = _this.game.add.audio('jump');
+            _this.jumpSound.allowMultiple = false;
+            _this.stepsSound = _this.game.add.audio('steps');
+            _this.stepsSound.allowMultiple = false;
+            _this.stepsSound.loop = true;
+            _this.gunshotSound = _this.game.add.audio('gunshot');
+            _this.gunshotSound.allowMultiple = true;
+            _this.gunshotSound.volume = 0.2;
+            _this.weapon.onFire.add(function () {
+                _this.gunshotSound.play();
+            });
             return _this;
         }
         Player.prototype.update = function () {
             this.body.velocity.x = 0;
-            if (this.cursors.left.isDown) {
+            if (this.checkLeft()) {
                 this.direction = Direction.Left;
                 this.body.velocity.x = -450;
-                if (this.cursors.up.isDown) {
+                if (this.checkUp()) {
                     this.weapon.fireAngle = 180 + 40;
                 }
-                else if (this.cursors.down.isDown) {
+                else if (this.checkDown()) {
                     this.weapon.fireAngle = 180 - 40;
                 }
                 else {
                     this.weapon.fireAngle = 180;
                 }
+                this.tryPlaySteps();
             }
-            else if (this.cursors.right.isDown) {
+            else if (this.checkRight()) {
                 this.direction = Direction.Right;
                 this.body.velocity.x = 450;
                 this.weapon.fireAngle = 360;
-                if (this.cursors.up.isDown) {
+                if (this.checkUp()) {
                     this.weapon.fireAngle = 360 - 40;
                 }
-                else if (this.cursors.down.isDown) {
+                else if (this.checkDown()) {
                     this.weapon.fireAngle = 360 + 40;
                 }
                 else {
                     this.weapon.fireAngle = 360;
                 }
+                this.tryPlaySteps();
             }
-            else if (this.cursors.up.isDown) {
+            else if (this.checkUp()) {
                 this.weapon.fireAngle = 270;
             }
-            else if (this.cursors.down.isDown) {
+            else if (this.checkDown()) {
                 this.weapon.fireAngle = 90;
             }
-            if (this.jumpButton.isDown && this.body.onFloor() && this.game.time.now > this.jumpTimer) {
+            if (!this.checkLeft() && !this.checkRight()) {
+                this.stopPlayingSteps();
+            }
+            if (this.checkJumpButton() && (this.body.onFloor() || this.body.touching.down) && this.game.time.now > this.jumpTimer) {
                 this.body.velocity.y = -1700;
                 this.jumpTimer = this.game.time.now + 750;
+                this.jumpSound.play();
             }
-            if (this.fireButton.isDown) {
+            if (this.checkFireButton()) {
                 this.weapon.fire();
             }
+        };
+        Player.prototype.tryPlaySteps = function () {
+            if (!this.stepsSound.isPlaying) {
+                this.stepsSound.play();
+            }
+        };
+        Player.prototype.stopPlayingSteps = function () {
+            var _this = this;
+            this.game.time.events.add(500, function () {
+                if (_this.stepsSound.isPlaying) {
+                    _this.stepsSound.stop();
+                }
+            });
+        };
+        Player.prototype.checkLeft = function () {
+            return this.cursors.left.isDown || this.pad.isDown(Phaser.Gamepad.XBOX360_DPAD_LEFT) || this.pad.axis(Phaser.Gamepad.XBOX360_STICK_LEFT_X) < -0.1;
+        };
+        Player.prototype.checkRight = function () {
+            return this.cursors.right.isDown || this.pad.isDown(Phaser.Gamepad.XBOX360_DPAD_RIGHT) || this.pad.axis(Phaser.Gamepad.XBOX360_STICK_LEFT_X) > 0.1;
+        };
+        Player.prototype.checkUp = function () {
+            return this.cursors.up.isDown || this.pad.isDown(Phaser.Gamepad.XBOX360_DPAD_UP) || this.pad.axis(Phaser.Gamepad.XBOX360_STICK_LEFT_Y) < -0.1;
+        };
+        Player.prototype.checkDown = function () {
+            return this.cursors.down.isDown || this.pad.isDown(Phaser.Gamepad.XBOX360_DPAD_DOWN) || this.pad.axis(Phaser.Gamepad.XBOX360_STICK_LEFT_Y) > 0.1;
+        };
+        Player.prototype.checkJumpButton = function () {
+            return this.jumpButton.isDown || this.pad.justPressed(Phaser.Gamepad.XBOX360_B);
+        };
+        Player.prototype.checkFireButton = function () {
+            return this.fireButton.isDown || this.pad.isDown(Phaser.Gamepad.XBOX360_X);
         };
         Player.prototype.getWeapon = function () {
             return this.weapon;
@@ -375,13 +471,39 @@ define("entities/player", ["require", "exports"], function (require, exports) {
     exports.Player = Player;
 });
 /// <reference path="../../node_modules/phaser/typescript/phaser.d.ts" />
-define("states/gameplay", ["require", "exports", "entities/heart", "entities/virus", "entities/player"], function (require, exports, heart_1, virus_1, player_1) {
+define("entities/bloodRain", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var BloodRain = (function (_super) {
+        __extends(BloodRain, _super);
+        function BloodRain(game) {
+            var _this = _super.call(this, game, game.world.centerX, -game.world.height) || this;
+            _this.game = game;
+            _this.width = game.world.width;
+            _this.angle = 25; // uncomment to set an angle for the rain.
+            _this.makeParticles('blood');
+            _this.minParticleScale = 0.25;
+            _this.maxParticleScale = 0.75;
+            _this.alpha = 0.3;
+            _this.setYSpeed(300, 500);
+            _this.setXSpeed(-5, 5);
+            _this.minRotation = 0;
+            _this.maxRotation = 0;
+            _this.start(false, 2500, 50, 0);
+            return _this;
+        }
+        return BloodRain;
+    }(Phaser.Particles.Arcade.Emitter));
+    exports.BloodRain = BloodRain;
+});
+/// <reference path="../../node_modules/phaser/typescript/phaser.d.ts" />
+define("states/gameplay", ["require", "exports", "entities/heart", "entities/virus", "entities/player", "entities/bloodRain"], function (require, exports, heart_1, virus_1, player_1, bloodRain_1) {
     "use strict";
     var Gameplay = (function (_super) {
         __extends(Gameplay, _super);
         function Gameplay() {
             var _this = _super !== null && _super.apply(this, arguments) || this;
             _this.viruses = [];
+            _this.platforms = [];
             _this.score = 0;
             return _this;
         }
@@ -390,15 +512,80 @@ define("states/gameplay", ["require", "exports", "entities/heart", "entities/vir
         };
         Gameplay.prototype.create = function () {
             this.physics.startSystem(Phaser.Physics.ARCADE);
+            this.bloodRain = new bloodRain_1.BloodRain(this.game);
             this.heart = new heart_1.Heart(this.game);
             this.player = new player_1.Player(this.game);
             this.newVirusTimer = this.game.time.create(false);
             this.newVirusTimer.loop(3000, this.virusTimerCallback.bind(this), this);
             this.newVirusTimer.start();
             this.buildLevel();
+            var textStyle = {
+                font: '36px Impact',
+                fill: '#fff',
+                align: 'left'
+            };
+            this.scoreText = this.game.add.text(20, 10, this.getScoreText(), textStyle);
+            this.healthText = this.game.add.text(this.game.world.width - 20, 10, this.getHealthText(), textStyle);
+            this.healthText.anchor.set(1, 0);
+        };
+        Gameplay.prototype.getScoreText = function () {
+            return 'Score: ' + this.score.toString();
+        };
+        Gameplay.prototype.getHealthText = function () {
+            return 'Health: ' + this.heart.health.toString();
         };
         Gameplay.prototype.buildLevel = function () {
-            var wall = this.game.add.sprite(0, this.game.world.centerY, 'platform');
+            var _this = this;
+            var platforms = [{
+                    x: this.game.world.width - 150,
+                    y: this.game.world.centerY + 150,
+                    w: 150,
+                    h: 20
+                }, {
+                    x: 0,
+                    y: this.game.world.centerY + 150,
+                    w: 150,
+                    h: 20
+                }, {
+                    x: this.game.world.width - 150,
+                    y: this.game.world.centerY - 150,
+                    w: 150,
+                    h: 20
+                }, {
+                    x: 0,
+                    y: this.game.world.centerY - 150,
+                    w: 150,
+                    h: 20
+                }, {
+                    x: this.game.world.centerX + 160,
+                    y: this.game.world.centerY,
+                    w: 100,
+                    h: 20
+                }, {
+                    x: this.game.world.centerX - 160 - 100,
+                    y: this.game.world.centerY,
+                    w: 100,
+                    h: 20
+                }, {
+                    x: 0,
+                    y: this.game.world.height - 20,
+                    w: this.game.world.width,
+                    h: 20
+                }];
+            platforms.forEach(function (platformsItem) {
+                var platform = _this.game.add.tileSprite(0, 0, 40, 40, 'platform');
+                platform.anchor.set(0, 0);
+                platform.width = platformsItem.w;
+                platform.height = platformsItem.h;
+                platform.position.set(platformsItem.x, platformsItem.y);
+                _this.game.physics.enable(platform);
+                platform.body.collideWorldBounds = true;
+                platform.body.immovable = true;
+                platform.body.allowGravity = false;
+                platform.body.checkCollision.left = false;
+                platform.body.checkCollision.right = false;
+                _this.platforms.push(platform);
+            });
         };
         Gameplay.prototype.virusTimerCallback = function () {
             var _this = this;
@@ -407,7 +594,7 @@ define("states/gameplay", ["require", "exports", "entities/heart", "entities/vir
             var virusEvents = virus.events;
             virus.attachAttackCallback(function () {
                 var loosingHealthText = _this.game.add.text(virus.position.x - 50, virus.position.y - 50, '-5 HP', {
-                    font: '48px Arial',
+                    font: '48px Impact',
                     fill: '#fff'
                 });
                 loosingHealthText.alpha = 1;
@@ -421,7 +608,7 @@ define("states/gameplay", ["require", "exports", "entities/heart", "entities/vir
             });
             virus.attachDeathCallback(function () {
                 var deathText = _this.game.add.text(_this.game.world.centerX, _this.game.world.centerY, 'Your heart is not beating anymore', {
-                    font: '46px Arial',
+                    font: '46px Impact',
                     fill: '#fff'
                 });
                 deathText.anchor.set(0.5, 0.5);
@@ -440,7 +627,7 @@ define("states/gameplay", ["require", "exports", "entities/heart", "entities/vir
             virusEvents.onKilled.addOnce(function () {
                 _this.score += 10;
                 var scoreText = _this.game.add.text(virus.position.x - 50, virus.position.y - 50, '+10 Points', {
-                    font: '48px Arial',
+                    font: '48px Impact',
                     fill: '#fff'
                 });
                 scoreText.alpha = 1;
@@ -457,26 +644,23 @@ define("states/gameplay", ["require", "exports", "entities/heart", "entities/vir
             var _this = this;
             this.viruses.forEach(function (virus) {
                 _this.game.physics.arcade.overlap(_this.player.getWeapon().bullets, virus, _this.virusBulletCollision.bind(_this));
+                _this.game.physics.arcade.collide(_this.player, virus, _this.virusPlayerCollision.bind(_this));
+            });
+            this.platforms.forEach(function (platform) {
+                _this.game.physics.arcade.collide(_this.player, platform);
             });
         };
         Gameplay.prototype.virusBulletCollision = function (virus, bullet) {
             bullet.kill();
             virus.damage(15);
-            virus.tint = 0xcccc00;
-            this.game.time.events.add(200, function () {
-                if (virus && virus.alive) {
-                    virus.tint = 0xffffff;
-                    virus.alpha = 1;
-                }
-            });
+            virus.playDamageSound();
+            virus.animateDamage();
+        };
+        Gameplay.prototype.virusPlayerCollision = function (player, virus) {
         };
         Gameplay.prototype.render = function () {
-            this.game.debug.text(this.heart.health.toString(), 10, 10, '#fff');
-            this.game.debug.text(this.score.toString(), this.world.game.width - 100, 10, '#fff');
-            //this.game.debug.body(this.heart);
-            // for (let i = 0; i < this.things.length; i++) {
-            //     this.game.debug.body(this.things[i]);
-            // }
+            this.scoreText.text = this.getScoreText();
+            this.healthText.text = this.getHealthText();
         };
         return Gameplay;
     }(Phaser.State));

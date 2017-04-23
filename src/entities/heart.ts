@@ -6,6 +6,9 @@ export class Heart extends Phaser.Sprite {
     beatDelay: number;
     heartbeatTween: Phaser.Tween;
 
+    heartbeatSound: Phaser.Sound;
+    heartbleedSound: Phaser.Sound;
+
     constructor(game: Phaser.Game) {
         super(game, game.world.centerX, game.world.centerY, 'heart', 1);
 
@@ -31,11 +34,28 @@ export class Heart extends Phaser.Sprite {
         this.beatDelay = 1000;
 
         this.heartbeatTween.yoyo(true, this.beatDelay);
+
+        this.heartbeatSound = this.game.add.audio('heartbeat');
+        this.heartbeatSound.allowMultiple = false;
+
+        let index = 0;
+        this.heartbeatTween.onLoop.add(() => {
+            index++;
+            if (index % 2 === 0) {
+                this.heartbeatSound.play();
+            }
+        });
+
+        this.heartbleedSound = this.game.add.audio('heartbleed');
+        this.heartbleedSound.allowMultiple = false;
+        this.heartbleedSound.volume = 0.65;
     }
 
     increaseHeartbeat() {
-        this.beatDelay -= 70;
+        this.beatDelay -= 60;
         this.heartbeatTween.yoyo(true, this.beatDelay);
+
+        this.heartbleedSound.play();
     }
 
     stop() {

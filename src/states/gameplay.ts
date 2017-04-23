@@ -4,6 +4,7 @@ import { Heart } from '../entities/heart';
 import { Virus, VirusState } from '../entities/virus';
 import { RandomGenerator } from '../helpers/randomGenerator';
 import { Player } from '../entities/player';
+import { BloodRain } from '../entities/bloodRain';
 
 export class Gameplay extends Phaser.State {
     heart: Heart;
@@ -13,9 +14,14 @@ export class Gameplay extends Phaser.State {
 
     newVirusTimer: Phaser.Timer;
 
-    platforms: Phaser.Group;
+    platforms: Phaser.TileSprite[] = [];
 
     score: number = 0;
+
+    bloodRain: BloodRain;
+
+    scoreText: Phaser.Text;
+    healthText: Phaser.Text;
 
     preload() {
         this.game.stage.backgroundColor = 0x890029;
@@ -23,6 +29,8 @@ export class Gameplay extends Phaser.State {
 
     create() {
         this.physics.startSystem(Phaser.Physics.ARCADE);
+
+        this.bloodRain = new BloodRain(this.game);
 
         this.heart = new Heart(this.game);
 
@@ -33,10 +41,89 @@ export class Gameplay extends Phaser.State {
         this.newVirusTimer.start();
 
         this.buildLevel();
+
+        let textStyle = {
+            font: '36px Impact',
+            fill: '#fff',
+            align: 'left'
+        };
+
+        this.scoreText = this.game.add.text(20, 10, this.getScoreText(), textStyle);
+        this.healthText = this.game.add.text(this.game.world.width - 20, 10, this.getHealthText(), textStyle);
+        this.healthText.anchor.set(1, 0);
+    }
+
+    getScoreText(): string {
+        return 'Score: ' + this.score.toString();
+    }
+
+    getHealthText(): string {
+        return 'Health: ' + this.heart.health.toString();
     }
 
     buildLevel() {
-        let wall = this.game.add.sprite(0, this.game.world.centerY, 'platform');
+        let platforms = [{
+            x: this.game.world.width - 150,
+            y: this.game.world.centerY + 150,
+            w: 150,
+            h: 20
+            // Low level right
+        }, {
+            x: 0,
+            y: this.game.world.centerY + 150,
+            w: 150,
+            h: 20
+            // Low level left
+        }, {
+            x: this.game.world.width - 150,
+            y: this.game.world.centerY - 150,
+            w: 150,
+            h: 20
+            // High level right
+        }, {
+            x: 0,
+            y: this.game.world.centerY - 150,
+            w: 150,
+            h: 20
+            // High level left
+        }, {
+            x: this.game.world.centerX + 160,
+            y: this.game.world.centerY,
+            w: 100,
+            h: 20
+            // Mid level right
+        }, {
+            x: this.game.world.centerX - 160 - 100,
+            y: this.game.world.centerY,
+            w: 100,
+            h: 20
+            // Mid level left
+        }, {
+            x: 0,
+            y: this.game.world.height - 20,
+            w: this.game.world.width,
+            h: 20
+        }];
+
+        platforms.forEach((platformsItem: any) => {
+            let platform = this.game.add.tileSprite(0, 0, 40, 40, 'platform');
+
+            platform.anchor.set(0, 0);
+            platform.width = platformsItem.w;
+            platform.height = platformsItem.h;
+            platform.position.set(platformsItem.x, platformsItem.y);
+
+            this.game.physics.enable(platform);
+
+            platform.body.collideWorldBounds = true;
+            platform.body.immovable = true;
+            platform.body.allowGravity = false;
+
+            platform.body.checkCollision.left = false;
+            platform.body.checkCollision.right = false;
+
+            this.platforms.push(platform);
+        });
     }
 
     virusTimerCallback() {
@@ -47,7 +134,7 @@ export class Gameplay extends Phaser.State {
 
         virus.attachAttackCallback(() => {
             let loosingHealthText = this.game.add.text(virus.position.x - 50, virus.position.y - 50, '-5 HP', {
-                font: '48px Arial',
+                font: '48px Impact',
                 fill: '#fff'
             });
 
@@ -65,7 +152,7 @@ export class Gameplay extends Phaser.State {
 
         virus.attachDeathCallback(() => {
             let deathText = this.game.add.text(this.game.world.centerX, this.game.world.centerY, 'Your heart is not beating anymore', {
-                font: '46px Arial',
+                font: '46px Impact',
                 fill: '#fff'
             });
 
@@ -91,7 +178,7 @@ export class Gameplay extends Phaser.State {
             this.score += 10;
 
             let scoreText = this.game.add.text(virus.position.x - 50, virus.position.y - 50, '+10 Points', {
-                font: '48px Arial',
+                font: '48px Impact',
                 fill: '#fff'
             });
 
@@ -111,31 +198,28 @@ export class Gameplay extends Phaser.State {
     update() {
         this.viruses.forEach((virus) => {
             this.game.physics.arcade.overlap(this.player.getWeapon().bullets, virus, this.virusBulletCollision.bind(this));
+
+            this.game.physics.arcade.collide(this.player, virus, this.virusPlayerCollision.bind(this));
+        });
+
+        this.platforms.forEach((platform) => {
+            this.game.physics.arcade.collide(this.player, platform);
         });
     }
 
-    virusBulletCollision(virus: Virus, bullet) {
+    virusBulletCollision(virus: Virus, bullet: Phaser.Bullet) {
         bullet.kill();
 
         virus.damage(15);
+        virus.playDamageSound();
+        virus.animateDamage();
+    }
 
-        virus.tint = 0xcccc00;
-
-        this.game.time.events.add(200, () => {
-            if (virus && virus.alive) {
-                virus.tint = 0xffffff;
-                virus.alpha = 1;
-            }
-        });
+    virusPlayerCollision(player: Player, virus: Virus) {
     }
 
     render() {
-        this.game.debug.text(this.heart.health.toString(), 10, 10, '#fff');
-        this.game.debug.text(this.score.toString(), this.world.game.width - 100, 10, '#fff');
-        //this.game.debug.body(this.heart);
-
-        // for (let i = 0; i < this.things.length; i++) {
-        //     this.game.debug.body(this.things[i]);
-        // }
+        this.scoreText.text = this.getScoreText();
+        this.healthText.text = this.getHealthText();
     }
 }

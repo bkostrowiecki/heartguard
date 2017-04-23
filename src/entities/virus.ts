@@ -25,6 +25,9 @@ export class Virus extends Phaser.Sprite {
     explosionEmitter: Phaser.Particles.Arcade.Emitter;
     heartbleedEmitter: Phaser.Particles.Arcade.Emitter;
 
+    explosionSound: Phaser.Sound;
+    hitSound: Phaser.Sound;
+
     constructor(game: Phaser.Game, heart: Heart) {
         super(game, -2000, -200, 'virus', 1);
 
@@ -40,6 +43,9 @@ export class Virus extends Phaser.Sprite {
         this.anchor.setTo(0.5, 0.5);
 
         this.body.setCircle(this.width / 2);
+        //this.body.setSize(80, 80, 0, 0);
+
+        this.body.immovable = true;
 
         this.health = 100;
         this.maxHealth = 100;
@@ -74,19 +80,26 @@ export class Virus extends Phaser.Sprite {
         this.explosionEmitter.makeParticles('explosionParticle');
         this.explosionEmitter.gravity = 0;
         this.explosionEmitter.lifespan = 400;
-        this.explosionEmitter.minParticleScale = 0.5;
+        this.explosionEmitter.minParticleScale = 0.75;
         this.explosionEmitter.minParticleSpeed.set(-500, -500);
         this.explosionEmitter.maxParticleSpeed.set(500, 500);
-        this.explosionEmitter.maxParticleScale = 1.5;
+        this.explosionEmitter.maxParticleScale = 2;
 
         this.heartbleedEmitter = this.game.add.emitter(this.game.world.centerX, this.game.world.centerY, 5);
         this.heartbleedEmitter.makeParticles('blood');
         this.heartbleedEmitter.gravity = 1000;
         this.heartbleedEmitter.lifespan = 400;
-        this.heartbleedEmitter.minParticleScale = 0.5;
+        this.heartbleedEmitter.minParticleScale = 0.75;
         this.heartbleedEmitter.minParticleSpeed.set(-100, -100);
         this.heartbleedEmitter.maxParticleSpeed.set(100, 250);
-        this.heartbleedEmitter.maxParticleScale = 1.5;
+        this.heartbleedEmitter.maxParticleScale = 2;
+
+        this.explosionSound = this.game.add.audio('explosion');
+        this.explosionSound.allowMultiple = false;
+
+        this.hitSound = this.game.add.audio('hit');
+        this.hitSound.allowMultiple = true;
+        this.hitSound.volume = 0.4;
     }
 
     update() {
@@ -118,9 +131,30 @@ export class Virus extends Phaser.Sprite {
             }, 350, Phaser.Easing.Cubic.In, true, 0, null, false);
         }, this);
 
+        this.explosionSound.play();
+
         this.game.time.events.add(1000, () => {
             this.explosionEmitter.destroy();
         }, this);
+
+        this.game.time.events.add(2000, () => {
+            this.explosionSound.destroy();
+        }, this);
+    }
+
+    playDamageSound() {
+        this.hitSound.play();
+    }
+
+    animateDamage() {
+        this.tint = 0xcccc00;
+
+        this.game.time.events.add(200, () => {
+            if (this && this.alive) {
+                this.tint = 0xffffff;
+                this.alpha = 1;
+            }
+        });
     }
 
     attackTick() {
