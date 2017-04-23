@@ -2,21 +2,23 @@
 import { RandomGenerator } from '../helpers/randomGenerator';
 import { Heart } from './heart';
 
-enum VirusState {
+export enum VirusState {
     FollowHeart = 0,
     PrepareToAttack = 1,
-    Attack = 2
+    Attack = 2,
+    HeartIsDead = 3
 };
 
 export class Virus extends Phaser.Sprite {
     game: Phaser.Game;
     heart: Heart;
 
-    virusState: VirusState;
+    public virusState: VirusState;
     virusbeatTween: Phaser.Tween;
     attackTimer: Phaser.Timer;
 
     attackCallback: Function = () => {};
+    deathCallback: Function = () => {};
 
     randomGenerator: RandomGenerator;
 
@@ -75,8 +77,23 @@ export class Virus extends Phaser.Sprite {
     }
 
     attackTick() {
+        if (this.heart.health <= 0 && this.heart.alive) {
+            this.heart.alive = false;
+
+            this.heart.stop();
+            this.deathCallback(this, this.heart);
+
+            return;
+        }
+
+        if (!this.heart.alive) {
+            return;
+        }
+        
         this.attackCallback(this, this.heart);
-        this.heart.health -= 10;
+        this.heart.health -= 5;
+
+        this.heart.increaseHeartbeat();
 
         this.heart.tint = 0xffff00;
         this.heart.alpha = 0.5;
@@ -87,11 +104,28 @@ export class Virus extends Phaser.Sprite {
         });
     }
 
+    heartIsDead() {
+        this.virusState = VirusState.HeartIsDead;
+
+        if (this.body) {
+            this.body.velocity.x = this.randomGenerator.getRandomInteger(0, 1000) - 500;
+            this.body.velocity.y = this.randomGenerator.getRandomInteger(0, 1000) - 500;
+        }
+    }
+
+    attachDeathCallback(deathCallback: Function) {
+        this.deathCallback = deathCallback;
+    }
+
     attachAttackCallback(attackCallback: Function) {
         this.attackCallback = attackCallback;
     }
 
     overlapHandler() {
+        if (this.virusState === VirusState.HeartIsDead) {
+            return;
+        }
+
         this.virusState = VirusState.PrepareToAttack;
 
         this.game.time.events.add(this.randomGenerator.getRandomInteger(1000, 5000), () => {

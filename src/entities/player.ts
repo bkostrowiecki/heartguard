@@ -34,8 +34,8 @@ export class Player extends Phaser.Sprite {
         this.body.setSize(80, 80, 0, 0);
 
         this.cursors = this.game.input.keyboard.createCursorKeys();
-        this.jumpButton = this.game.input.keyboard.addKey(Phaser.Keyboard.Z);
-        this.fireButton = this.game.input.keyboard.addKey(Phaser.Keyboard.X);
+        this.jumpButton = this.game.input.keyboard.addKey(Phaser.Keyboard.X);
+        this.fireButton = this.game.input.keyboard.addKey(Phaser.Keyboard.Z);
 
         this.weapon = this.game.add.weapon(50, 'bullet');
 
@@ -43,7 +43,7 @@ export class Player extends Phaser.Sprite {
 
         this.weapon.bulletAngleOffset = 20;
         this.weapon.bulletSpeed = 1500;
-        this.weapon.fireRate = 250;
+        this.weapon.fireRate = 200;
 
         this.weapon.bulletAngleVariance = 2;
     
@@ -54,9 +54,9 @@ export class Player extends Phaser.Sprite {
         this.body.velocity.x = 0;
 
         if (this.cursors.left.isDown) {
-            this.body.velocity.x = -800;
-
             this.direction = Direction.Left;
+            
+            this.body.velocity.x = -450;
 
             if (this.cursors.up.isDown) {
                 this.weapon.fireAngle = 180 + 40;
@@ -68,7 +68,7 @@ export class Player extends Phaser.Sprite {
         } else if (this.cursors.right.isDown) {
             this.direction = Direction.Right;
 
-            this.body.velocity.x = 800;
+            this.body.velocity.x = 450;
             this.weapon.fireAngle = 360;
 
             if (this.cursors.up.isDown) {

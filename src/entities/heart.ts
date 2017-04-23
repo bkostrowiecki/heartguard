@@ -3,6 +3,9 @@
 export class Heart extends Phaser.Sprite {
     game: Phaser.Game;
 
+    beatDelay: number;
+    heartbeatTween: Phaser.Tween;
+
     constructor(game: Phaser.Game) {
         super(game, game.world.centerX, game.world.centerY, 'heart', 1);
 
@@ -20,12 +23,23 @@ export class Heart extends Phaser.Sprite {
         this.scale.x = 1.1;
         this.scale.y = 1.1;
 
-        let heartbeatTween = this.game.add.tween(this.scale).to({
+        this.heartbeatTween = this.game.add.tween(this.scale).to({
             x: 1,
             y: 1
         }, 150, 'Linear', true, 0, -1);
 
-        heartbeatTween.yoyo(true, 850);
+        this.beatDelay = 1000;
+
+        this.heartbeatTween.yoyo(true, this.beatDelay);
+    }
+
+    increaseHeartbeat() {
+        this.beatDelay -= 70;
+        this.heartbeatTween.yoyo(true, this.beatDelay);
+    }
+
+    stop() {
+        this.heartbeatTween.stop();
     }
 
     update() {
