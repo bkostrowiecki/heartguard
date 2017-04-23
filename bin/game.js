@@ -53,6 +53,8 @@ define("states/preloader", ["require", "exports"], function (require, exports) {
             this.game.load.image('virus', 'bin/assets/virus.png');
             this.game.load.image('player', 'bin/assets/player.png');
             this.game.load.image('bullet', 'bin/assets/bullet.png');
+            this.game.load.image('explosionParticle', 'bin/assets/explosionParticle.png');
+            this.game.load.image('blood', 'bin/assets/blood.png');
         };
         Preloader.prototype.create = function () {
             var tween = this.add.tween(this.preloaderBar).to({
@@ -180,10 +182,29 @@ define("entities/virus", ["require", "exports", "helpers/randomGenerator"], func
             _this.virusbeatTween = _this.game.add.tween(_this.scale).to({
                 x: 0.85,
                 y: 0.85
-            }, 100, 'Linear', true, 0, -1);
+            }, 100, Phaser.Easing.Cubic.In, true, 0, -1);
             _this.virusbeatTween.yoyo(true, 100);
             _this.attackTimer = _this.game.time.create(false);
             _this.attackTimer.loop(3000, _this.attackTick.bind(_this), _this);
+            _this.events.onKilled.addOnce(function () {
+                _this.onKilled();
+            });
+            _this.explosionEmitter = _this.game.add.emitter(_this.game.world.centerX, _this.game.world.centerY, 30);
+            _this.explosionEmitter.makeParticles('explosionParticle');
+            _this.explosionEmitter.gravity = 0;
+            _this.explosionEmitter.lifespan = 400;
+            _this.explosionEmitter.minParticleScale = 0.5;
+            _this.explosionEmitter.minParticleSpeed.set(-500, -500);
+            _this.explosionEmitter.maxParticleSpeed.set(500, 500);
+            _this.explosionEmitter.maxParticleScale = 1.5;
+            _this.heartbleedEmitter = _this.game.add.emitter(_this.game.world.centerX, _this.game.world.centerY, 5);
+            _this.heartbleedEmitter.makeParticles('blood');
+            _this.heartbleedEmitter.gravity = 1000;
+            _this.heartbleedEmitter.lifespan = 400;
+            _this.heartbleedEmitter.minParticleScale = 0.5;
+            _this.heartbleedEmitter.minParticleSpeed.set(-100, -100);
+            _this.heartbleedEmitter.maxParticleSpeed.set(100, 250);
+            _this.heartbleedEmitter.maxParticleScale = 1.5;
             return _this;
         }
         Virus.prototype.update = function () {
@@ -195,6 +216,23 @@ define("entities/virus", ["require", "exports", "helpers/randomGenerator"], func
             if (this.alive && this.virusState === VirusState.FollowHeart) {
                 this.game.physics.arcade.moveToObject(this, this.heart, 100);
             }
+            this.explosionEmitter.x = this.x;
+            this.explosionEmitter.y = this.y;
+            this.heartbleedEmitter.x = this.x;
+            this.heartbleedEmitter.y = this.y;
+        };
+        Virus.prototype.onKilled = function () {
+            var _this = this;
+            this.explosionEmitter.start(true, 400, null, 20, false);
+            this.explosionEmitter.forEachAlive(function (particle) {
+                particle.alpha = 1;
+                _this.game.add.tween(particle).to({
+                    alpha: 0
+                }, 350, Phaser.Easing.Cubic.In, true, 0, null, false);
+            }, this);
+            this.game.time.events.add(1000, function () {
+                _this.explosionEmitter.destroy();
+            }, this);
         };
         Virus.prototype.attackTick = function () {
             var _this = this;
@@ -212,6 +250,7 @@ define("entities/virus", ["require", "exports", "helpers/randomGenerator"], func
             this.heart.increaseHeartbeat();
             this.heart.tint = 0xffff00;
             this.heart.alpha = 0.5;
+            this.heartbleedEmitter.start(true, 300, null, 5);
             this.game.time.events.add(200, function () {
                 _this.heart.tint = 0xffffff;
                 _this.heart.alpha = 1;
@@ -237,7 +276,7 @@ define("entities/virus", ["require", "exports", "helpers/randomGenerator"], func
             }
             this.virusState = VirusState.PrepareToAttack;
             this.game.time.events.add(this.randomGenerator.getRandomInteger(1000, 5000), function () {
-                if (_this.alive) {
+                if (_this.alive && _this.virusState !== VirusState.HeartIsDead) {
                     _this.body.velocity.x = 0;
                     _this.body.velocity.y = 0;
                 }

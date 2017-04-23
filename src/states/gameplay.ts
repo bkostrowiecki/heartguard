@@ -111,7 +111,7 @@ export class Gameplay extends Phaser.State {
     update() {
         this.viruses.forEach((virus) => {
             this.game.physics.arcade.overlap(this.player.getWeapon().bullets, virus, this.virusBulletCollision.bind(this));
-        })
+        });
     }
 
     virusBulletCollision(virus: Virus, bullet) {
