@@ -52,6 +52,9 @@ define("states/preloader", ["require", "exports"], function (require, exports) {
             this.game.load.image('heart', 'bin/assets/heart.png');
             this.game.load.image('virus', 'bin/assets/virus.png');
             this.game.load.image('player', 'bin/assets/player.png');
+            this.game.load.image('gun', 'bin/assets/gun2.png');
+            this.game.load.image('playerTop', 'bin/assets/playerTop.png');
+            this.game.load.image('playerLeg', 'bin/assets/playerLeg.png');
             this.game.load.audio('explosion', 'bin/assets/explosion.mp3');
             this.game.load.audio('jump', 'bin/assets/jump.mp3');
             this.game.load.audio('steps', 'bin/assets/steps.mp3');
@@ -342,6 +345,17 @@ define("entities/player", ["require", "exports"], function (require, exports) {
         Direction[Direction["Right"] = 2] = "Right";
     })(Direction || (Direction = {}));
     ;
+    var GunDirection;
+    (function (GunDirection) {
+        GunDirection[GunDirection["None"] = 0] = "None";
+        GunDirection[GunDirection["Right"] = 1] = "Right";
+        GunDirection[GunDirection["RightSlightlyTop"] = 2] = "RightSlightlyTop";
+        GunDirection[GunDirection["RightTop"] = 3] = "RightTop";
+        GunDirection[GunDirection["Left"] = 4] = "Left";
+        GunDirection[GunDirection["LeftSlightlyTop"] = 5] = "LeftSlightlyTop";
+        GunDirection[GunDirection["LeftTop"] = 6] = "LeftTop";
+    })(GunDirection || (GunDirection = {}));
+    ;
     var Player = (function (_super) {
         __extends(Player, _super);
         function Player(game) {
@@ -355,32 +369,75 @@ define("entities/player", ["require", "exports"], function (require, exports) {
             _this.body.collideWorldBounds = true;
             _this.body.gravity.y = 5000;
             _this.body.maxVelocity.y = 10000;
-            _this.body.setSize(80, 80, 0, 0);
+            _this.body.setSize(64, 64, 0, 0);
             _this.body.checkCollision.up = false;
             _this.cursors = _this.game.input.keyboard.createCursorKeys();
             _this.jumpButton = _this.game.input.keyboard.addKey(Phaser.Keyboard.X);
             _this.fireButton = _this.game.input.keyboard.addKey(Phaser.Keyboard.Z);
-            _this.weapon = _this.game.add.weapon(50, 'bullet');
-            _this.weapon.bulletKillType = Phaser.Weapon.KILL_WORLD_BOUNDS;
-            _this.weapon.bulletAngleOffset = 20;
-            _this.weapon.bulletSpeed = 1500;
-            _this.weapon.fireRate = 200;
-            _this.weapon.bulletAngleVariance = 2;
-            _this.weapon.trackSprite(_this, 40, 40);
+            _this.pauseButton = _this.game.input.keyboard.addKey(Phaser.Keyboard.P);
             _this.jumpSound = _this.game.add.audio('jump');
             _this.jumpSound.allowMultiple = false;
             _this.stepsSound = _this.game.add.audio('steps');
             _this.stepsSound.allowMultiple = false;
             _this.stepsSound.loop = true;
-            _this.gunshotSound = _this.game.add.audio('gunshot');
-            _this.gunshotSound.allowMultiple = true;
-            _this.gunshotSound.volume = 0.2;
-            _this.weapon.onFire.add(function () {
-                _this.gunshotSound.play();
-            });
+            _this.establishLook();
+            _this.setupWeapon();
             return _this;
         }
+        Player.prototype.establishLook = function () {
+            this.leftLeg = this.addChild(this.game.make.sprite(0, 0, 'playerLeg'));
+            this.leftLeg.anchor.set(0.5, 0.1);
+            this.leftLeg.x = this.width / 2 - 10;
+            this.leftLeg.y = this.height - 25;
+            this.leftLeg.angle -= 45;
+            this.leftLegTween = this.game.add.tween(this.leftLeg).to({
+                angle: '+100'
+            }, 100, Phaser.Easing.Linear.None, true, 0, -1, true);
+            this.rightLeg = this.addChild(this.game.make.sprite(0, 0, 'playerLeg'));
+            this.rightLeg.anchor.set(0.5, 0.1);
+            this.rightLeg.x = this.width / 2 + 10;
+            this.rightLeg.y = this.height - 25;
+            this.rightLeg.angle += 55;
+            this.rightLegTween = this.game.add.tween(this.rightLeg).to({
+                angle: '-100'
+            }, 100, Phaser.Easing.Linear.None, true, 0, -1, true);
+            this.topPlayer = this.addChild(this.game.make.sprite(0, 0, 'playerTop'));
+            this.topPlayer.anchor.set(0.5, 0.5);
+            this.topPlayer.x = this.width / 2;
+            this.topPlayer.y = this.height / 2;
+            this.gun = this.addChild(this.game.make.sprite(0, 0, 'gun'));
+            this.gun.anchor.set(0.2, 0.5);
+            this.gun.x = this.width / 2;
+            this.gun.y = this.height / 2 + 5;
+        };
+        Player.prototype.setupWeapon = function () {
+            var _this = this;
+            this.weapon = this.game.add.weapon(50, 'bullet');
+            this.weapon.bulletKillType = Phaser.Weapon.KILL_WORLD_BOUNDS;
+            this.weapon.bulletAngleOffset = 20;
+            this.weapon.bulletSpeed = 1500;
+            this.weapon.fireRate = 200;
+            this.weapon.bulletAngleVariance = 2;
+            this.weapon.trackSprite(this, 32, 32);
+            var WeaponBullet = (function (_super) {
+                __extends(WeaponBullet, _super);
+                function WeaponBullet(game, x, y, direction, speed) {
+                    var _this = _super.call(this, game, x, y, direction, speed) || this;
+                    _this.z = -1;
+                    return _this;
+                }
+                return WeaponBullet;
+            }(Phaser.Bullet));
+            this.weapon.bulletClass = WeaponBullet;
+            this.weapon.onFire.add(function () {
+                _this.gunshotSound.play();
+            });
+            this.gunshotSound = this.game.add.audio('gunshot');
+            this.gunshotSound.allowMultiple = true;
+            this.gunshotSound.volume = 0.2;
+        };
         Player.prototype.update = function () {
+            var _this = this;
             this.body.velocity.x = 0;
             if (this.checkLeft()) {
                 this.direction = Direction.Left;
@@ -417,8 +474,32 @@ define("entities/player", ["require", "exports"], function (require, exports) {
             else if (this.checkDown()) {
                 this.weapon.fireAngle = 90;
             }
+            if (this.direction === Direction.Left) {
+                this.gun.scale.y = -1;
+                this.topPlayer.scale.x = -1;
+                this.leftLeg.scale.x = -1;
+                this.rightLeg.scale.x = -1;
+            }
+            else {
+                this.gun.scale.y = 1;
+                this.topPlayer.scale.x = 1;
+                this.leftLeg.scale.x = 1;
+                this.rightLeg.scale.x = 1;
+            }
             if (!this.checkLeft() && !this.checkRight()) {
                 this.stopPlayingSteps();
+                this.leftLegTween.pause();
+                this.leftLeg.angle = 10;
+                this.rightLegTween.pause();
+                this.rightLeg.angle = -10;
+            }
+            else {
+                if (this.leftLegTween.isPaused) {
+                    this.leftLegTween.resume();
+                }
+                if (this.rightLegTween.isPaused) {
+                    this.rightLegTween.resume();
+                }
             }
             if (this.checkJumpButton() && (this.body.onFloor() || this.body.touching.down) && this.game.time.now > this.jumpTimer) {
                 this.body.velocity.y = -1700;
@@ -427,6 +508,23 @@ define("entities/player", ["require", "exports"], function (require, exports) {
             }
             if (this.checkFireButton()) {
                 this.weapon.fire();
+            }
+            this.gun.angle = this.weapon.fireAngle;
+            if (this.checkPause()) {
+                console.log('pause');
+                this.game.paused = true;
+                this.pauseText = this.game.add.text(this.game.world.centerX, this.game.world.centerY, 'Pause', {
+                    font: '64px Impact',
+                    fill: '#ddd',
+                    align: 'left'
+                });
+                this.pauseText.anchor.set(0.5, 0.5);
+                setInterval(function () {
+                    if (_this.checkPause()) {
+                        _this.game.paused = false;
+                        _this.pauseText.destroy();
+                    }
+                }, 100);
             }
         };
         Player.prototype.tryPlaySteps = function () {
@@ -460,11 +558,11 @@ define("entities/player", ["require", "exports"], function (require, exports) {
         Player.prototype.checkFireButton = function () {
             return this.fireButton.isDown || this.pad.isDown(Phaser.Gamepad.XBOX360_X);
         };
+        Player.prototype.checkPause = function () {
+            return this.pauseButton.justDown || this.pad.justPressed(Phaser.Gamepad.XBOX360_START);
+        };
         Player.prototype.getWeapon = function () {
             return this.weapon;
-        };
-        Player.prototype.render = function () {
-            this.game.debug.bodyInfo(this, 16, 24);
         };
         return Player;
     }(Phaser.Sprite));
@@ -505,6 +603,9 @@ define("states/gameplay", ["require", "exports", "entities/heart", "entities/vir
             _this.viruses = [];
             _this.platforms = [];
             _this.score = 0;
+            _this.killedViruses = 0;
+            _this.emittedViruses = 0;
+            _this.wave = 1;
             return _this;
         }
         Gameplay.prototype.preload = function () {
@@ -515,9 +616,7 @@ define("states/gameplay", ["require", "exports", "entities/heart", "entities/vir
             this.bloodRain = new bloodRain_1.BloodRain(this.game);
             this.heart = new heart_1.Heart(this.game);
             this.player = new player_1.Player(this.game);
-            this.newVirusTimer = this.game.time.create(false);
-            this.newVirusTimer.loop(3000, this.virusTimerCallback.bind(this), this);
-            this.newVirusTimer.start();
+            this.setAi();
             this.buildLevel();
             var textStyle = {
                 font: '36px Impact',
@@ -527,6 +626,88 @@ define("states/gameplay", ["require", "exports", "entities/heart", "entities/vir
             this.scoreText = this.game.add.text(20, 10, this.getScoreText(), textStyle);
             this.healthText = this.game.add.text(this.game.world.width - 20, 10, this.getHealthText(), textStyle);
             this.healthText.anchor.set(1, 0);
+        };
+        Gameplay.prototype.setAi = function () {
+            this.killedViruses = 0;
+            this.wave = 1;
+            this.updateAi();
+        };
+        Gameplay.prototype.updateAi = function () {
+            var aiBreakpoint = 3;
+            if (this.killedViruses === 0) {
+                this.newVirusTimer = this.game.time.create(false);
+                this.newVirusTimer.loop(5000, this.virusTimerCallback.bind(this), this);
+                this.newVirusTimer.start();
+                this.flashWaveNumber(this.wave++);
+            }
+            if (this.emittedViruses === aiBreakpoint) {
+                this.newVirusTimer.stop();
+            }
+            if (this.killedViruses === aiBreakpoint) {
+                this.newVirusTimer.loop(5000, this.virusTimerCallback.bind(this), this);
+                this.newVirusTimer.start(3000);
+                this.flashWaveNumber(this.wave++);
+            }
+            aiBreakpoint += 5;
+            if (this.emittedViruses === aiBreakpoint) {
+                this.newVirusTimer.stop();
+            }
+            if (this.killedViruses === aiBreakpoint) {
+                this.newVirusTimer.loop(4500, this.virusTimerCallback.bind(this), this);
+                this.newVirusTimer.start(3000);
+                this.flashWaveNumber(this.wave++);
+            }
+            aiBreakpoint += 5;
+            if (this.emittedViruses === aiBreakpoint) {
+                this.newVirusTimer.stop();
+            }
+            if (this.killedViruses === aiBreakpoint) {
+                this.newVirusTimer.loop(4000, this.virusTimerCallback.bind(this), this);
+                this.newVirusTimer.start(3000);
+                this.flashWaveNumber(this.wave++);
+            }
+            aiBreakpoint += 8;
+            if (this.emittedViruses === aiBreakpoint) {
+                this.newVirusTimer.stop();
+            }
+            if (this.killedViruses === aiBreakpoint) {
+                this.newVirusTimer.loop(3500, this.virusTimerCallback.bind(this), this);
+                this.newVirusTimer.start(3000);
+                this.flashWaveNumber(this.wave++);
+            }
+            aiBreakpoint += 3;
+            if (this.emittedViruses === aiBreakpoint) {
+                this.newVirusTimer.stop();
+            }
+            if (this.killedViruses === aiBreakpoint) {
+                this.newVirusTimer.loop(3000, this.virusTimerCallback.bind(this), this);
+                this.newVirusTimer.start(3000);
+                this.flashWaveNumber(this.wave++);
+            }
+            aiBreakpoint += 15;
+            if (this.emittedViruses === aiBreakpoint) {
+                this.newVirusTimer.stop();
+            }
+            if (this.killedViruses === aiBreakpoint) {
+                this.newVirusTimer.loop(3000, this.virusTimerCallback.bind(this), this);
+                this.newVirusTimer.start(3000);
+                this.flashWaveNumber(this.wave++);
+            }
+        };
+        Gameplay.prototype.flashWaveNumber = function (wave) {
+            var waveText = this.game.add.text(this.game.world.centerX, this.game.world.centerY, 'Wave ' + wave, {
+                font: '64px Impact',
+                fill: '#fff'
+            });
+            waveText.anchor.set(0.5, 0.5);
+            waveText.alpha = 1;
+            var waveTextTween = this.game.add.tween(waveText).to({
+                y: '-75',
+                alpha: 0
+            }, 3000, 'Linear', true, 0, 0);
+            this.game.time.events.add(3000, function () {
+                waveText.destroy();
+            });
         };
         Gameplay.prototype.getScoreText = function () {
             return 'Score: ' + this.score.toString();
@@ -592,6 +773,7 @@ define("states/gameplay", ["require", "exports", "entities/heart", "entities/vir
             var virus = new virus_1.Virus(this.game, this.heart);
             this.viruses.push(virus);
             var virusEvents = virus.events;
+            this.emittedViruses++;
             virus.attachAttackCallback(function () {
                 var loosingHealthText = _this.game.add.text(virus.position.x - 50, virus.position.y - 50, '-5 HP', {
                     font: '48px Impact',
@@ -638,6 +820,8 @@ define("states/gameplay", ["require", "exports", "entities/heart", "entities/vir
                 _this.game.time.events.add(1000, function () {
                     scoreText.destroy();
                 });
+                _this.killedViruses++;
+                _this.updateAi();
             });
         };
         Gameplay.prototype.update = function () {
@@ -661,6 +845,7 @@ define("states/gameplay", ["require", "exports", "entities/heart", "entities/vir
         Gameplay.prototype.render = function () {
             this.scoreText.text = this.getScoreText();
             this.healthText.text = this.getHealthText();
+            //this.game.debug.body(this.player);
         };
         return Gameplay;
     }(Phaser.State));

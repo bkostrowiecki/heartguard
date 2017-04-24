@@ -18,6 +18,9 @@ export class Preloader extends Phaser.State {
         this.game.load.image('heart', 'bin/assets/heart.png');
         this.game.load.image('virus', 'bin/assets/virus.png');
         this.game.load.image('player', 'bin/assets/player.png');
+        this.game.load.image('gun', 'bin/assets/gun2.png');
+        this.game.load.image('playerTop', 'bin/assets/playerTop.png');
+        this.game.load.image('playerLeg', 'bin/assets/playerLeg.png');
 
         this.game.load.audio('explosion', 'bin/assets/explosion.mp3');
         this.game.load.audio('jump', 'bin/assets/jump.mp3');

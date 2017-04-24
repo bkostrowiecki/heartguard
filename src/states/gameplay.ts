@@ -23,6 +23,11 @@ export class Gameplay extends Phaser.State {
     scoreText: Phaser.Text;
     healthText: Phaser.Text;
 
+    killedViruses: number = 0;
+    emittedViruses: number = 0;
+
+    wave: number = 1;
+
     preload() {
         this.game.stage.backgroundColor = 0x890029;
     }
@@ -36,9 +41,7 @@ export class Gameplay extends Phaser.State {
 
         this.player = new Player(this.game);
 
-        this.newVirusTimer = this.game.time.create(false);
-        this.newVirusTimer.loop(3000, this.virusTimerCallback.bind(this), this);
-        this.newVirusTimer.start();
+        this.setAi();
 
         this.buildLevel();
 
@@ -51,6 +54,119 @@ export class Gameplay extends Phaser.State {
         this.scoreText = this.game.add.text(20, 10, this.getScoreText(), textStyle);
         this.healthText = this.game.add.text(this.game.world.width - 20, 10, this.getHealthText(), textStyle);
         this.healthText.anchor.set(1, 0);
+    }
+
+    setAi() {
+        this.killedViruses = 0;
+        this.wave = 1;
+        this.updateAi();
+    }
+
+    updateAi() {
+        let aiBreakpoint = 3;
+
+        if (this.killedViruses === 0) {
+            this.newVirusTimer = this.game.time.create(false);
+            this.newVirusTimer.loop(5000, this.virusTimerCallback.bind(this), this);
+            this.newVirusTimer.start();
+
+            this.flashWaveNumber(this.wave++);
+        }
+        
+        if (this.emittedViruses === aiBreakpoint) {
+            this.newVirusTimer.stop();
+        }
+
+        if (this.killedViruses === aiBreakpoint) {
+            this.newVirusTimer.loop(5000, this.virusTimerCallback.bind(this), this);
+            this.newVirusTimer.start(3000);
+
+            this.flashWaveNumber(this.wave++);
+        }
+
+        aiBreakpoint += 5;
+
+        if (this.emittedViruses === aiBreakpoint) {
+            this.newVirusTimer.stop();
+        }
+
+        if (this.killedViruses === aiBreakpoint) {
+            this.newVirusTimer.loop(4500, this.virusTimerCallback.bind(this), this);
+            this.newVirusTimer.start(3000);
+
+            this.flashWaveNumber(this.wave++);
+        }
+
+        aiBreakpoint += 5;
+
+        if (this.emittedViruses === aiBreakpoint) {
+            this.newVirusTimer.stop();
+        }
+
+        if (this.killedViruses === aiBreakpoint) {
+            this.newVirusTimer.loop(4000, this.virusTimerCallback.bind(this), this);
+            this.newVirusTimer.start(3000);
+
+            this.flashWaveNumber(this.wave++);
+        }
+
+        aiBreakpoint += 8;
+
+        if (this.emittedViruses === aiBreakpoint) {
+            this.newVirusTimer.stop();
+        }
+
+        if (this.killedViruses === aiBreakpoint) {
+            this.newVirusTimer.loop(3500, this.virusTimerCallback.bind(this), this);
+            this.newVirusTimer.start(3000);
+
+            this.flashWaveNumber(this.wave++);
+        }
+
+        aiBreakpoint += 3;
+
+        if (this.emittedViruses === aiBreakpoint) {
+            this.newVirusTimer.stop();
+        }
+
+        if (this.killedViruses === aiBreakpoint) {
+            this.newVirusTimer.loop(3000, this.virusTimerCallback.bind(this), this);
+            this.newVirusTimer.start(3000);
+
+            this.flashWaveNumber(this.wave++);
+        }
+
+        aiBreakpoint += 15;
+
+        if (this.emittedViruses === aiBreakpoint) {
+            this.newVirusTimer.stop();
+        }
+
+        if (this.killedViruses === aiBreakpoint) {
+            this.newVirusTimer.loop(3000, this.virusTimerCallback.bind(this), this);
+            this.newVirusTimer.start(3000);
+
+            this.flashWaveNumber(this.wave++);
+        }
+    }
+
+    flashWaveNumber(wave) {
+        let waveText = this.game.add.text(this.game.world.centerX, this.game.world.centerY, 'Wave ' + wave, {
+            font: '64px Impact',
+            fill: '#fff'
+        });
+
+        waveText.anchor.set(0.5, 0.5);
+
+        waveText.alpha = 1;
+
+        let waveTextTween = this.game.add.tween(waveText).to({
+            y: '-75',
+            alpha: 0
+        }, 3000, 'Linear', true, 0, 0);
+        this.game.time.events.add(3000, () => {
+            waveText.destroy();
+        });
     }
 
     getScoreText(): string {
@@ -132,6 +248,8 @@ export class Gameplay extends Phaser.State {
 
         let virusEvents = virus.events;
 
+        this.emittedViruses++;
+
         virus.attachAttackCallback(() => {
             let loosingHealthText = this.game.add.text(virus.position.x - 50, virus.position.y - 50, '-5 HP', {
                 font: '48px Impact',
@@ -192,6 +310,10 @@ export class Gameplay extends Phaser.State {
             this.game.time.events.add(1000, () => {
                 scoreText.destroy();
             });
+
+            this.killedViruses++;
+
+            this.updateAi();
         });
     }
 
@@ -221,5 +343,7 @@ export class Gameplay extends Phaser.State {
     render() {
         this.scoreText.text = this.getScoreText();
         this.healthText.text = this.getHealthText();
+
+        //this.game.debug.body(this.player);
     }
 }
