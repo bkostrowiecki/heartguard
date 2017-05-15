@@ -3,21 +3,25 @@ import { RandomGenerator } from '../helpers/randomGenerator';
 import { Heart } from './heart';
 import { VirusBase } from './virusbase';
 
-export enum VirusState {
-    FollowHeart = 0,
-    PrepareToAttack = 1,
-    Attack = 2,
-    HeartIsDead = 3
+enum VirusState {
+    Rest = 1,
+    FollowHeart = 2,
+    PrepareToAttack = 3,
+    Attack = 4,
+    HeartIsDead = 5
 };
 
-export class Virus extends VirusBase {
+export class MegaVirus extends VirusBase {
     game: Phaser.Game;
     heart: Heart;
 
     public virusState: VirusState;
 
     virusbeatTween: Phaser.Tween;
+    virusShakeTween: Phaser.Tween;
+
     attackTimer: Phaser.Timer;
+    restTimer: Phaser.Timer;
 
     randomGenerator: RandomGenerator;
 
@@ -28,7 +32,7 @@ export class Virus extends VirusBase {
     hitSound: Phaser.Sound;
 
     constructor(game: Phaser.Game, heart: Heart) {
-        super(game, -2000, -200, 'virus', 1);
+        super(game, -2000, -200, 'megaVirus', 1);
 
         this.game = game;
         this.heart = heart;
@@ -46,8 +50,8 @@ export class Virus extends VirusBase {
 
         this.body.immovable = true;
 
-        this.health = 100;
-        this.maxHealth = 100;
+        this.health = 450;
+        this.maxHealth = 450;
 
         this.scale.x = 1;
         this.scale.y = 1;
@@ -61,14 +65,20 @@ export class Virus extends VirusBase {
         this.position.y = this.randomGenerator.getRandomInteger(-100, this.game.world.height + 100);
 
         this.virusbeatTween = this.game.add.tween(this.scale).to({
-            x: 0.85,
-            y: 0.85
+            x: 0.95,
+            y: 0.95
         }, 100, Phaser.Easing.Cubic.In, true, 0, -1);
 
         this.virusbeatTween.yoyo(true, 100);
 
+        // this.virusShakeTween = this.game.add.tween(this).to({
+        //     x: '+10'
+        // }, 100, Phaser.Easing.Cubic.In, true, 0, -1);
+
+        // this.virusShakeTween.yoyo(true, 100);
+
         this.attackTimer = this.game.time.create(false);
-        this.attackTimer.loop(3000, this.attackTick.bind(this), this);
+        this.attackTimer.loop(6000, this.attackTick.bind(this), this);
 
         this.events.onKilled.addOnce(() => {
             this.onKilled();
@@ -99,6 +109,20 @@ export class Virus extends VirusBase {
         this.hitSound = this.game.add.audio('hit');
         this.hitSound.allowMultiple = true;
         this.hitSound.volume = 0.4;
+
+        this.body.velocity.x = this.randomGenerator.getRandomInteger(0, 700) - 350; 
+        this.body.velocity.y = this.randomGenerator.getRandomInteger(0, 700) - 350;
+
+        this.restTimer = this.game.time.create(false);
+        this.restTimer.loop(4000, () => {
+            if (this.virusState === VirusState.FollowHeart) {
+                this.virusState = VirusState.Rest;
+            } else if (this.virusState === VirusState.Rest) {
+                this.virusState = VirusState.FollowHeart;
+            }
+        });
+
+        this.restTimer.start();
     }
 
     update() {
@@ -109,8 +133,12 @@ export class Virus extends VirusBase {
             this.attackTimer.destroy();
         }
 
+        if (this.alive && this.virusState === VirusState.Rest) {
+            this.body.velocity.set(0, 0);
+        }
+
         if (this.alive && this.virusState === VirusState.FollowHeart) {
-            this.game.physics.arcade.moveToObject(this, this.heart, 100);
+            this.game.physics.arcade.moveToObject(this, this.heart, 40);
         }
         
         this.explosionEmitter.x = this.x;
@@ -171,7 +199,7 @@ export class Virus extends VirusBase {
         }
         
         this.attackCallback(this, this.heart);
-        this.heart.health -= 5;
+        this.heart.health -= 10;
 
         this.heart.increaseHeartbeat();
 
@@ -202,7 +230,7 @@ export class Virus extends VirusBase {
 
         this.virusState = VirusState.PrepareToAttack;
 
-        this.game.time.events.add(this.randomGenerator.getRandomInteger(1000, 5000), () => {
+        this.game.time.events.add(this.randomGenerator.getRandomInteger(4000, 6000), () => {
             if (this.alive && this.virusState !== VirusState.HeartIsDead) {
                 this.body.velocity.x = 0;
                 this.body.velocity.y = 0;

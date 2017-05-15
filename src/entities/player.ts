@@ -22,6 +22,8 @@ export class Player extends Phaser.Sprite {
     cursors: Phaser.CursorKeys;
     jumpButton: Phaser.Key;
     fireButton: Phaser.Key;
+    jumpButton2: Phaser.Key;
+    fireButton2: Phaser.Key;
     pauseButton: Phaser.Key;
 
     jumpTimer: Number = 0;
@@ -65,7 +67,9 @@ export class Player extends Phaser.Sprite {
 
         this.cursors = this.game.input.keyboard.createCursorKeys();
         this.jumpButton = this.game.input.keyboard.addKey(Phaser.Keyboard.X);
+        this.jumpButton2 = this.game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
         this.fireButton = this.game.input.keyboard.addKey(Phaser.Keyboard.Z);
+        this.fireButton2 = this.game.input.keyboard.addKey(Phaser.Keyboard.CONTROL);
         this.pauseButton = this.game.input.keyboard.addKey(Phaser.Keyboard.P);
 
         this.jumpSound = this.game.add.audio('jump');
@@ -274,11 +278,11 @@ export class Player extends Phaser.Sprite {
     }
 
     checkJumpButton() {
-        return this.jumpButton.isDown || this.pad.justPressed(Phaser.Gamepad.XBOX360_B);
+        return this.jumpButton.isDown || this.jumpButton2.isDown || this.pad.justPressed(Phaser.Gamepad.XBOX360_B);
     }
 
     checkFireButton() {
-        return this.fireButton.isDown || this.pad.isDown(Phaser.Gamepad.XBOX360_X);
+        return this.fireButton.isDown || this.fireButton2.isDown ||this.pad.isDown(Phaser.Gamepad.XBOX360_X);
     }
 
     checkPause() {
